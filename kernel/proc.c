@@ -287,6 +287,8 @@ int fork(void)
 
   np->parent = p;
 
+  np->tmask = p->tmask;
+
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -718,4 +720,14 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int nproc(void)
+{
+  int count = 0;
+  struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++)
+    if (p->state != UNUSED)
+      count++;
+  return count;
 }
