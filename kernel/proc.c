@@ -268,6 +268,8 @@ void userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
+  vmcopy(p->pagetable, p->kpagetable, 0, p->sz);
+
   p->state = RUNNABLE;
 
   release(&p->lock);
@@ -283,10 +285,13 @@ int growproc(int n)
   sz = p->sz;
   if (n > 0)
   {
+    if (PGROUNDUP(sz + n) > PLIC)
+      return -1;
     if ((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0)
     {
       return -1;
     }
+    vmcopy(p->pagetable, p->kpagetable, p->sz, sz);
   }
   else if (n < 0)
   {
@@ -336,6 +341,8 @@ int fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+
+  vmcopy(np->pagetable, np->kpagetable, 0, np->sz);
 
   np->state = RUNNABLE;
 
