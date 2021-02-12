@@ -80,7 +80,16 @@ void usertrap(void)
 
   // give up the CPU if this is a timer interrupt.
   if (which_dev == 2)
+  {
+    if (p->interval > 0 && !p->busy && ++p->passed_ticks == p->interval)
+    {
+      p->passed_ticks = 0;
+      p->busy = 1;
+      memmove(p->atrapframe, p->trapframe, 36 * sizeof(uint64));
+      p->trapframe->epc = (uint64)p->handler;
+    }
     yield();
+  }
 
   usertrapret();
 }
