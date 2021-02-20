@@ -66,11 +66,8 @@ void usertrap(void)
   }
   else if (r_scause() == 13 || r_scause() == 15)
   {
-    if (vainit(r_stval()) == 0)
-    {
+    if (r_stval() >= p->sz || r_stval() < PGROUNDUP(p->trapframe->sp) || vainit(p->pagetable, r_stval()) == 0)
       p->killed = 1;
-      exit(-1);
-    }
   }
   else if ((which_dev = devintr()) != 0)
   {
