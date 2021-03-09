@@ -64,6 +64,13 @@ void usertrap(void)
 
     syscall();
   }
+  else if (r_scause() == 13)
+  {
+    uint64 va = r_stval();
+    struct vma *v;
+    if (vget(p->vmas, &v, va) != 0 || valloc(p->pagetable, v, va) != 0)
+      p->killed = 1;
+  }
   else if ((which_dev = devintr()) != 0)
   {
     // ok

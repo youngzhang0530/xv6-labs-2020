@@ -135,6 +135,9 @@ found:
     return 0;
   }
 
+  // Set virtual memory area start
+  p->vstart = TRAPFRAME - NVMA * PGSIZE;
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -292,6 +295,25 @@ int fork(void)
   }
   np->sz = p->sz;
 
+  // Copy mapped regions from parent to child.
+  for (int i = 0; i < NVMA; i++)
+  {
+    struct vma *oldv = &p->vmas[i];
+    struct vma *newv = &np->vmas[i];
+    if (oldv->addr != 0)
+    {
+      newv->addr = oldv->addr;
+      newv->f = oldv->f;
+      newv->fd = oldv->fd;
+      newv->flags = oldv->flags;
+      newv->len = oldv->len;
+      newv->npage = oldv->len / PGSIZE;
+      newv->off = oldv->off;
+      newv->prot = oldv->prot;
+      incref(oldv->f);
+    }
+  }
+
   np->parent = p;
 
   // copy saved user registers.
@@ -364,6 +386,10 @@ void exit(int status)
       p->ofile[fd] = 0;
     }
   }
+
+  // Unmap the process's mapped regions.
+  for (int i = 0; i < NVMA && p->vmas[i].addr != 0; i++)
+    vfree(p->pagetable, &p->vmas[i]);
 
   begin_op();
   iput(p->cwd);
@@ -727,4 +753,18 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// Find the vma including va.
+int vget(struct vma *vs, struct vma **pv, uint64 va)
+{
+  for (int i = 0; i < NVMA; i++)
+  {
+    if (vs[i].addr <= va && va < vs[i].addr + vs[i].len)
+    {
+      *pv = &vs[i];
+      return 0;
+    }
+  }
+  return -1;
 }

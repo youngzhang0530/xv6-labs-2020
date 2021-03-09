@@ -198,3 +198,17 @@ int filewrite(struct file *f, uint64 addr, int n)
 
   return ret;
 }
+
+void incref(struct file *f)
+{
+  acquire(&ftable.lock);
+  f->ref++;
+  release(&ftable.lock);
+}
+
+void decref(struct file *f)
+{
+  acquire(&ftable.lock);
+  f->ref--;
+  release(&ftable.lock);
+}

@@ -518,3 +518,65 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64 sys_mmap(void)
+{
+  int len, prot, flags, fd, off;
+  struct file *f;
+  if (argint(1, &len) != 0 ||
+      argint(2, &prot) != 0 ||
+      argint(3, &flags) != 0 ||
+      argfd(4, &fd, &f) != 0 ||
+      argint(5, &off) != 0)
+    return -1;
+
+  if ((flags & MAP_SHARED) != 0 &&
+      (prot & PROT_WRITE) != 0 &&
+      (prot & PROT_READ) != 0 &&
+      f->writable == 0)
+    return -1;
+
+  struct proc *p = myproc();
+  for (int i = 0; i < NVMA; i++)
+  {
+    struct vma *v = &p->vmas[i];
+    if (v->addr == 0)
+    {
+      v->addr = p->vstart;
+      p->vstart += len;
+      v->len = len;
+      v->prot = prot;
+      v->flags = flags;
+      v->fd = fd;
+      v->f = f;
+      v->off = off;
+      v->npage = len / PGSIZE;
+      incref(f);
+      return v->addr;
+    }
+  }
+  return -1;
+}
+
+uint64 sys_munmap(void)
+{
+  uint64 addr;
+  int len;
+  if (argaddr(0, &addr) != 0 || argint(1, &len) != 0)
+    return -1;
+
+  struct proc *p = myproc();
+  struct vma *v;
+  if (vget(p->vmas, &v, addr) != 0)
+    return -1;
+  if ((v->flags & MAP_SHARED) != 0)
+    filewrite(v->f, addr, len);
+  vmunmap(p->pagetable, addr, len / PGSIZE);
+  v->npage -= len / PGSIZE;
+  if (v->npage == 0)
+  {
+    decref(v->f);
+    v->addr = 0;
+  }
+  return 0;
+}

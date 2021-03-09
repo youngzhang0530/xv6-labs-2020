@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct vma;
 
 // bio.c
 void binit(void);
@@ -33,6 +34,8 @@ void fileinit(void);
 int fileread(struct file *, uint64, int n);
 int filestat(struct file *, uint64 addr);
 int filewrite(struct file *, uint64, int n);
+void incref(struct file *);
+void decref(struct file *);
 
 // fs.c
 void fsinit(int);
@@ -105,6 +108,7 @@ void yield(void);
 int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void procdump(void);
+int vget(struct vma *, struct vma **, uint64);
 
 // swtch.S
 void swtch(struct context *, struct context *);
@@ -171,6 +175,9 @@ uint64 walkaddr(pagetable_t, uint64);
 int copyout(pagetable_t, uint64, char *, uint64);
 int copyin(pagetable_t, char *, uint64, uint64);
 int copyinstr(pagetable_t, char *, uint64, uint64);
+int valloc(pagetable_t, struct vma *, uint64);
+void vmunmap(pagetable_t, uint64, uint64);
+void vfree(pagetable_t, struct vma *);
 
 // plic.c
 void plicinit(void);

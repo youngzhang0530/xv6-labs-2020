@@ -5,6 +5,11 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "fcntl.h"
+#include "spinlock.h"
+#include "sleeplock.h"
+#include "file.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -442,4 +447,51 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   {
     return -1;
   }
+}
+
+int valloc(pagetable_t pagetable, struct vma *v, uint64 va)
+{
+  char *mem = kalloc();
+  if (mem == 0)
+    return -1;
+  memset(mem, 0, PGSIZE);
+  struct inode *ip = v->f->ip;
+  uint off = PGROUNDDOWN(va) - v->addr;
+  ilock(ip);
+  if (readi(ip, 0, (uint64)mem, off, PGSIZE) <= 0)
+    return -1;
+  iunlock(ip);
+  if (mappages(pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)mem, v->prot << 1 | PTE_U) != 0)
+    return -1;
+  return 0;
+}
+
+void vmunmap(pagetable_t pagetable, uint64 va, uint64 npages)
+{
+  uint64 a;
+  pte_t *pte;
+
+  if ((va % PGSIZE) != 0)
+    panic("vmunmap: not aligned");
+
+  for (a = va; a < va + npages * PGSIZE; a += PGSIZE)
+  {
+    if ((pte = walk(pagetable, a, 0)) == 0)
+      panic("vmunmap: walk");
+    if ((*pte & PTE_V) == 0)
+      continue;
+    if (PTE_FLAGS(*pte) == PTE_V)
+      panic("vmunmap: not a leaf");
+    uint64 pa = PTE2PA(*pte);
+    kfree((void *)pa);
+    *pte = 0;
+  }
+}
+
+void vfree(pagetable_t pagetable, struct vma *v)
+{
+  if ((v->flags & MAP_SHARED) != 0)
+    filewrite(v->f, v->addr, v->len);
+  vmunmap(pagetable, v->addr, v->len / PGSIZE);
+  decref(v->f);
 }
