@@ -7,6 +7,6 @@ addr = ('localhost', int(sys.argv[1]))
 buf = "this is a ping!".encode('utf-8')
 
 while True:
-	print("pinging...", file=sys.stderr)
-	sock.sendto(buf, ("127.0.0.1", int(sys.argv[1])))
-	time.sleep(1)
+    print("pinging...", file=sys.stderr)
+    sock.sendto(buf, ("127.0.0.1", int(sys.argv[1])))
+    time.sleep(1)
